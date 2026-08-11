@@ -1,0 +1,44 @@
+{
+  "tls": {
+    "rootCa": "./demo-ca.crt",
+    "clientCrt": "./client.crt",
+    "clientKey": "./client.key"
+  },
+
+  "databases": [
+    {
+      "name": "primary",
+      "host": "demo-db.redis-enterprise.example.com",
+      "port": 443,
+      "username": "default",
+      "password": "bbOZvi6H",
+      "weight": 30.0
+    },
+
+    {
+      "name": "secondary-1",
+      "host": "test-db.redis-enterprise.example.com",
+      "port": 443,
+      "username": "default",
+      "password": "6XxZo4Tq",
+      "weight": 50.0
+    },
+      {
+      "name": "secondary-1",
+      "host": "test-db2.redis-enterprise.example.com",
+      "port": 443,
+      "username": "default",
+      "password": "BlqfSO99",
+      "weight": 100.0
+    },
+      {
+      "name": "secondary-1",
+      "host": "test-db3.redis-enterprise.example.com",
+      "port": 443,
+      "username": "default",
+      "password": "zCzGM0qH",
+      "weight": 40.0
+    }
+
+  ]
+}

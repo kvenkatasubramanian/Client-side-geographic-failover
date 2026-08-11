@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'redis.clients:jedis:7.5.3'
+    implementation 'io.lettuce:lettuce-core:7.6.0.RELEASE'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.19.2'
+    implementation 'io.github.resilience4j:resilience4j-all:1.7.1'
+
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.81'
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.81'
+
+    implementation 'org.slf4j:slf4j-simple:2.0.17'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+application {
+    mainClass = project.findProperty("mainClass") ?: "LettuceMultiDbTlsExample"
+}
+
