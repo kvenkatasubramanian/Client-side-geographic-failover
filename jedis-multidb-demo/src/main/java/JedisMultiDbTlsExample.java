@@ -52,6 +52,8 @@ public class JedisMultiDbTlsExample {
 
     public static void main(String[] args) {
 
+        configureLogging();
+
         String configFile;
 
         if (args.length == 0) {
@@ -473,21 +475,13 @@ public class JedisMultiDbTlsExample {
                                 + endpoint.port);
             }
 
-            if (isBlank(endpoint.username)) {
-
-                throw new IllegalArgumentException(
-                        "Database "
-                                + endpoint.name
-                                + ": username is required");
-            }
-
-            if (endpoint.password == null) {
-
-                throw new IllegalArgumentException(
-                        "Database "
-                                + endpoint.name
-                                + ": password is required");
-            }
+            // Username and password are optional.
+            // Supported configurations are:
+            //   1. neither username nor password
+            //   2. password only (Redis default-user style)
+            //   3. username + password
+            // An empty username is treated the same as an omitted username.
+            // An empty password is treated the same as an omitted password.
 
             if (endpoint.weight <= 0) {
 
@@ -509,36 +503,31 @@ public class JedisMultiDbTlsExample {
             SSLSocketFactory sslSocketFactory,
             SSLParameters sslParameters) {
 
-        return DefaultJedisClientConfig.builder()
+        DefaultJedisClientConfig.Builder builder =
+                DefaultJedisClientConfig.builder()
+                        .connectionTimeoutMillis(10_000)
+                        .socketTimeoutMillis(10_000)
+                        .ssl(true)
+                        /*
+                         * Existing PEM files are converted into an
+                         * SSLContext / SSLSocketFactory.
+                         */
+                        .sslSocketFactory(sslSocketFactory)
+                        .sslParameters(sslParameters);
 
-                .user(endpoint.username)
+        // Authentication is optional. Support:
+        // - no authentication
+        // - password only
+        // - username + password
+        if (!isBlank(endpoint.username)) {
+            builder.user(endpoint.username);
+        }
 
-                .password(endpoint.password)
+        if (!isBlank(endpoint.password)) {
+            builder.password(endpoint.password);
+        }
 
-                .connectionTimeoutMillis(10_000)
-
-                .socketTimeoutMillis(10_000)
-
-                .ssl(true)
-
-                /*
-                 * Existing PEM files are converted into an
-                 * SSLContext / SSLSocketFactory.
-                 *
-                 * Jedis 7.4+ recommends SslOptions, but its
-                 * modern API is keystore/truststore based.
-                 *
-                 * This keeps your existing Redis config using:
-                 *
-                 *   rootca.crt
-                 *   client.crt
-                 *   client.key
-                 */
-                .sslSocketFactory(sslSocketFactory)
-
-                .sslParameters(sslParameters)
-
-                .build();
+        return builder.build();
     }
 
 
@@ -692,34 +681,128 @@ public class JedisMultiDbTlsExample {
     private static void handleDatabaseSwitch(
             DatabaseSwitchEvent event) {
 
-        System.out.println();
-        System.out.println(
-                "=================================================");
+        try {
+            String databaseName = safeToString(
+                    event.getDatabaseName());
 
-        System.out.println(
-                "DATABASE SWITCH DETECTED");
+            String endpoint = safeToString(
+                    event.getEndpoint());
 
-        System.out.println(
-                "Time      : "
-                        + LocalDateTime.now());
+            String reason = friendlySwitchReason(
+                    event.getReason());
 
-        System.out.println(
-                "Database  : "
-                        + event.getDatabaseName());
+            System.out.println();
+            System.out.println(
+                    "=================================================");
+            System.out.println(
+                    "DATABASE SWITCH DETECTED");
+            System.out.println(
+                    "Time      : " + LocalDateTime.now());
+            System.out.println(
+                    "Database  : " + databaseName);
+            System.out.println(
+                    "Endpoint  : " + endpoint);
+            System.out.println(
+                    "Reason    : " + reason);
+            System.out.println();
+            System.out.println(
+                    "Traffic switched automatically to healthy database endpoint.");
+            System.out.println(
+                    "Application continues running.");
+            System.out.println(
+                    "=================================================");
+            System.out.println();
 
-        System.out.println(
-                "Endpoint  : "
-                        + event.getEndpoint());
-
-        System.out.println(
-                "Reason    : "
-                        + event.getReason());
-
-        System.out.println(
-                "=================================================");
-
-        System.out.println();
+        } catch (Exception handlerException) {
+            // Never allow logging/formatting of a failover event to
+            // interfere with the application or failover process.
+            System.out.println();
+            System.out.println(
+                    "DATABASE SWITCH DETECTED");
+            System.out.println(
+                    "Traffic switched automatically to healthy database endpoint.");
+            System.out.println(
+                    "Application continues running.");
+            System.out.println();
+        }
     }
+
+
+    private static String safeToString(Object value) {
+        return value == null ? "unknown" : String.valueOf(value);
+    }
+
+
+    private static String friendlySwitchReason(Object reason) {
+        String raw = safeToString(reason);
+        String text = raw.toLowerCase();
+
+        if (containsAny(text,
+                "timeout",
+                "timed out",
+                "time out",
+                "connecttimeoutexception")) {
+            return "Endpoint health check timed out";
+        }
+
+        if (containsAny(text,
+                "connection refused",
+                "connectexception")) {
+            return "Endpoint connection was refused";
+        }
+
+        if (containsAny(text,
+                "connection reset",
+                "connectionreset")) {
+            return "Endpoint connection was reset";
+        }
+
+        if (containsAny(text,
+                "unreachable",
+                "no route to host",
+                "unknownhost")) {
+            return "Endpoint is unreachable";
+        }
+
+        if (containsAny(text,
+                "authentication",
+                "wrongpass",
+                "noauth")) {
+            return "Endpoint authentication failed";
+        }
+
+        if (containsAny(text,
+                "ssl",
+                "tls",
+                "handshake",
+                "certificate")) {
+            return "Endpoint TLS connection failed";
+        }
+
+        if (containsAny(text,
+                "health",
+                "ping",
+                "healthcheck")) {
+            return "Endpoint health check failed";
+        }
+
+        return "Endpoint became unhealthy";
+    }
+
+
+    private static boolean containsAny(
+            String text,
+            String... values) {
+
+        for (String value : values) {
+            if (text.contains(value)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 
 
     // ============================================================
@@ -1082,6 +1165,32 @@ public class JedisMultiDbTlsExample {
                 initialized = true;
             }
         }
+    }
+
+
+    // ============================================================
+    // LOGGING
+    // ============================================================
+
+    private static void configureLogging() {
+
+        /*
+         * Keep the demo output focused on application-level failover
+         * status instead of noisy health-check WARN stack traces.
+         * These properties must be set before the SLF4J SimpleLogger
+         * initializes the relevant logger instances.
+         */
+        System.setProperty(
+                "org.slf4j.simpleLogger.log.redis.clients.jedis.mcf",
+                "error");
+
+        System.setProperty(
+                "org.slf4j.simpleLogger.log.io.github.resilience4j",
+                "error");
+
+        System.setProperty(
+                "org.slf4j.simpleLogger.log.redis.clients.jedis",
+                "warn");
     }
 
 
