@@ -308,3 +308,122 @@ Reason    : Connection failure
 - The configuration supports one or more Redis databases.
 - The same `redis-config.json` format can be used by both implementations.
 - The examples are intended to illustrate client-side geographic failover behavior and can be extended for production environments.
+
+
+# Sample Output
+```text
+==============================================
+REDIS PRE-FLIGHT CHECK
+==============================================
+Checking 4 configured endpoint(s)
+
+Checking: primary [demo-db.redis-enterprise.example.com:443]
+  STATUS : OK
+  PING   : PONG
+  TIME   : 593 ms
+
+Checking: secondary-1 [test-db.redis-enterprise.example.com:443]
+  STATUS : OK
+  PING   : PONG
+  TIME   : 395 ms
+
+Checking: secondary-1 [test-db2.redis-enterprise.example.com:443]
+  STATUS : OK
+  PING   : PONG
+  TIME   : 275 ms
+
+Checking: secondary-1 [test-db3.redis-enterprise.example.com:443]
+  STATUS : OK
+  PING   : PONG
+  TIME   : 278 ms
+
+==============================================
+PRE-FLIGHT RESULT: ALL ENDPOINTS HEALTHY
+==============================================
+
+==============================================
+APPLICATION STARTED
+==============================================
+Current Database: test-db2.redis-enterprise.example.com:443
+Configured Databases: 4
+==============================================
+
+Press Ctrl+C to stop.
+
+---------------------------------------------
+ACTIVE DATABASE : test-db2.redis-enterprise.example.com:443
+---------------------------------------------
+2026-08-11T20:42:16.439692 | 0 | test-db2.redis-enterprise.example.com:443 | value-0
+2026-08-11T20:42:17.535134 | 1 | test-db2.redis-enterprise.example.com:443 | value-1
+2026-08-11T20:42:18.628081 | 2 | test-db2.redis-enterprise.example.com:443 | value-2
+2026-08-11T20:42:19.726821 | 3 | test-db2.redis-enterprise.example.com:443 | value-3
+2026-08-11T20:42:20.810633 | 4 | test-db2.redis-enterprise.example.com:443 | value-4
+2026-08-11T20:42:21.901991 | 5 | test-db2.redis-enterprise.example.com:443 | value-5
+2026-08-11T20:42:22.989051 | 6 | test-db2.redis-enterprise.example.com:443 | value-6
+2026-08-11T20:42:24.077128 | 7 | test-db2.redis-enterprise.example.com:443 | value-7
+
+=================================================
+DATABASE SWITCH DETECTED
+Time      : 2026-08-11T20:42:26.359698
+Database  : database:test-db.redis-enterprise.example.com:443
+Endpoint  : test-db.redis-enterprise.example.com:443
+Reason    : Endpoint health check failed
+
+Traffic switched automatically to healthy database endpoint.
+Application continues running.
+=================================================
+
+[main] ERROR redis.clients.jedis.mcf.MultiDbConnectionProvider - 2026-08-11T20:42:36.120347-05:00[America/Chicago]: CircuitBreaker 'database:test-db2.redis-enterprise.example.com:443' recorded an error: 'redis.clients.jedis.exceptions.JedisConnectionException: java.net.SocketTimeoutException: Read timed out'. Elapsed time: 11041 ms
+[main] ERROR redis.clients.jedis.mcf.MultiDbConnectionProvider - 2026-08-11T20:42:36.125591-05:00[America/Chicago]: Retry 'database:test-db2.redis-enterprise.example.com:443' recorded a failed retry attempt. Number of retry attempts: '1'. Giving up. Last exception was: 'redis.clients.jedis.exceptions.JedisConnectionException: java.net.SocketTimeoutException: Read timed out'.
+
+*********** OPERATION FAILED ***********
+2026-08-11T20:42:36.126142
+Reason: SocketTimeoutException: Read timed out
+***************************************
+
+---------------------------------------------
+ACTIVE DATABASE : test-db.redis-enterprise.example.com:443
+---------------------------------------------
+2026-08-11T20:42:37.442029 | 8 | test-db.redis-enterprise.example.com:443 | value-8
+2026-08-11T20:42:38.532311 | 9 | test-db.redis-enterprise.example.com:443 | value-9
+2026-08-11T20:42:39.618789 | 10 | test-db.redis-enterprise.example.com:443 | value-10
+2026-08-11T20:42:40.718194 | 11 | test-db.redis-enterprise.example.com:443 | value-11
+2026-08-11T20:42:41.805923 | 12 | test-db.redis-enterprise.example.com:443 | value-12
+2026-08-11T20:42:42.901188 | 13 | test-db.redis-enterprise.example.com:443 | value-13
+2026-08-11T20:42:43.990615 | 14 | test-db.redis-enterprise.example.com:443 | value-14
+2026-08-11T20:42:45.080844 | 15 | test-db.redis-enterprise.example.com:443 | value-15
+2026-08-11T20:42:46.161797 | 16 | test-db.redis-enterprise.example.com:443 | value-16
+2026-08-11T20:42:47.249985 | 17 | test-db.redis-enterprise.example.com:443 | value-17
+2026-08-11T20:42:48.340021 | 18 | test-db.redis-enterprise.example.com:443 | value-18
+2026-08-11T20:42:49.426021 | 19 | test-db.redis-enterprise.example.com:443 | value-19
+2026-08-11T20:42:50.568320 | 20 | test-db.redis-enterprise.example.com:443 | value-20
+2026-08-11T20:42:51.655424 | 21 | test-db.redis-enterprise.example.com:443 | value-21
+2026-08-11T20:42:52.745223 | 22 | test-db.redis-enterprise.example.com:443 | value-22
+2026-08-11T20:42:53.831838 | 23 | test-db.redis-enterprise.example.com:443 | value-23
+2026-08-11T20:42:54.919925 | 24 | test-db.redis-enterprise.example.com:443 | value-24
+2026-08-11T20:42:56.006772 | 25 | test-db.redis-enterprise.example.com:443 | value-25
+
+=================================================
+DATABASE SWITCH DETECTED
+Time      : 2026-08-11T20:42:56.427320
+Database  : database:test-db2.redis-enterprise.example.com:443
+Endpoint  : test-db2.redis-enterprise.example.com:443
+Reason    : Endpoint became unhealthy
+
+Traffic switched automatically to healthy database endpoint.
+Application continues running.
+=================================================
+
+---------------------------------------------
+ACTIVE DATABASE : test-db2.redis-enterprise.example.com:443
+---------------------------------------------
+2026-08-11T20:42:57.094477 | 26 | test-db2.redis-enterprise.example.com:443 | value-26
+2026-08-11T20:42:58.175681 | 27 | test-db2.redis-enterprise.example.com:443 | value-27
+2026-08-11T20:42:59.265437 | 28 | test-db2.redis-enterprise.example.com:443 | value-28
+2026-08-11T20:43:00.364701 | 29 | test-db2.redis-enterprise.example.com:443 | value-29
+2026-08-11T20:43:01.461520 | 30 | test-db2.redis-enterprise.example.com:443 | value-30
+2026-08-11T20:43:02.548710 | 31 | test-db2.redis-enterprise.example.com:443 | value-31
+2026-08-11T20:43:03.634602 | 32 | test-db2.redis-enterprise.example.com:443 | value-32
+2026-08-11T20:43:04.719558 | 33 | test-db2.redis-enterprise.example.com:443 | value-33
+
+```
