@@ -27,6 +27,8 @@ public class LettuceMultiDbTlsExample {
 
     public static void main(String[] args) {
 
+        configureLogging();
+
         String configFile;
 
         if (args.length == 0) {
@@ -320,16 +322,15 @@ public class LettuceMultiDbTlsExample {
                                 + db.port);
             }
 
-            if (isBlank(db.username)) {
-                throw new IllegalArgumentException(
-                        "Database " + db.name
-                                + ": username is required");
-            }
+            // Username/password are optional. If authentication is used,
+            // require both values so the configuration is unambiguous.
+            boolean usernameProvided = !isBlank(db.username);
+            boolean passwordProvided = !isBlank(db.password);
 
-            if (db.password == null) {
+            if (usernameProvided != passwordProvided) {
                 throw new IllegalArgumentException(
                         "Database " + db.name
-                                + ": password is required");
+                                + ": username and password must either both be provided or both be null/blank");
             }
 
             if (db.weight < 0) {
@@ -496,9 +497,12 @@ public class LettuceMultiDbTlsExample {
                 .withSsl(true)
                 .build();
 
-        uri.setAuthentication(
-                endpoint.username,
-                endpoint.password);
+        if (!isBlank(endpoint.username) &&
+                !isBlank(endpoint.password)) {
+            uri.setAuthentication(
+                    endpoint.username,
+                    endpoint.password);
+        }
 
         return uri;
     }
@@ -516,67 +520,143 @@ public class LettuceMultiDbTlsExample {
                 .get()
                 .subscribe(event -> {
 
-                    if ("DatabaseSwitchEvent"
+                    if (!"DatabaseSwitchEvent"
                             .equals(
                                     event.getClass()
                                             .getSimpleName())) {
+                        return;
+                    }
 
-                        try {
+                    try {
 
-                            Method getFromDb =
-                                    event.getClass()
-                                            .getMethod(
-                                                    "getFromDb");
+                        Method getFromDb =
+                                event.getClass()
+                                        .getMethod("getFromDb");
 
-                            Method getToDb =
-                                    event.getClass()
-                                            .getMethod(
-                                                    "getToDb");
+                        Method getToDb =
+                                event.getClass()
+                                        .getMethod("getToDb");
 
-                            Method getReason =
-                                    event.getClass()
-                                            .getMethod(
-                                                    "getReason");
+                        Method getReason =
+                                event.getClass()
+                                        .getMethod("getReason");
 
-                            Object fromDb =
-                                    getFromDb.invoke(event);
+                        Object fromDb =
+                                getFromDb.invoke(event);
 
-                            Object toDb =
-                                    getToDb.invoke(event);
+                        Object toDb =
+                                getToDb.invoke(event);
 
-                            Object reason =
-                                    getReason.invoke(event);
+                        Object reason =
+                                getReason.invoke(event);
 
-                            System.out.println();
-                            System.out.println(
-                                    "=================================================");
-                            System.out.println(
-                                    "DATABASE SWITCH DETECTED");
-                            System.out.println(
-                                    "Time      : "
-                                            + LocalDateTime.now());
-                            System.out.println(
-                                    "Switched  : "
-                                            + fromDb
-                                            + " -> "
-                                            + toDb);
-                            System.out.println(
-                                    "Reason    : "
-                                            + reason);
-                            System.out.println(
-                                    "=================================================");
-                            System.out.println();
+                        handleDatabaseSwitch(
+                                fromDb,
+                                toDb,
+                                reason);
 
-                        } catch (Exception ex) {
+                    } catch (Exception ex) {
 
-                            System.out.println(
-                                    "DATABASE SWITCH DETECTED: "
-                                            + event);
-                        }
+                        // Do not let event-listener problems interrupt
+                        // the application's Redis traffic.
+                        System.out.println();
+                        System.out.println(
+                                "DATABASE SWITCH DETECTED");
+                        System.out.println(
+                                "Traffic switched automatically to a healthy database endpoint.");
+                        System.out.println(
+                                "Application continues running.");
+                        System.out.println();
                     }
                 });
     }
 
+
+    private static void handleDatabaseSwitch(
+            Object fromDb,
+            Object toDb,
+            Object reason) {
+
+        String cleanReason =
+                mapFailoverReason(reason);
+
+        System.out.println();
+        System.out.println(
+                "=================================================");
+        System.out.println(
+                "DATABASE SWITCH DETECTED");
+        System.out.println(
+                "Time      : "
+                        + LocalDateTime.now());
+        System.out.println(
+                "Switched  : "
+                        + fromDb
+                        + " -> "
+                        + toDb);
+        System.out.println(
+                "Reason    : "
+                        + cleanReason);
+        System.out.println();
+        System.out.println(
+                "Traffic switched automatically to healthy database endpoint.");
+        System.out.println(
+                "Application continues running.");
+        System.out.println(
+                "=================================================");
+        System.out.println();
+    }
+
+
+    private static String mapFailoverReason(Object reason) {
+
+        if (reason == null) {
+            return "Endpoint health check failed";
+        }
+
+        String raw = String.valueOf(reason);
+        String normalized = raw.toLowerCase();
+
+        if (normalized.contains("timeout") ||
+                normalized.contains("timed out") ||
+                normalized.contains("connecttimeoutexception")) {
+            return "Endpoint health check timed out";
+        }
+
+        if (normalized.contains("connection refused") ||
+                normalized.contains("connectionrefusedexception")) {
+            return "Endpoint connection was refused";
+        }
+
+        if (normalized.contains("no route to host") ||
+                normalized.contains("unreachable") ||
+                normalized.contains("unknownhostexception")) {
+            return "Endpoint is unreachable";
+        }
+
+        if (normalized.contains("sslhandshakeexception") ||
+                normalized.contains("ssl handshake") ||
+                normalized.contains("certificate")) {
+            return "Endpoint TLS connection failed";
+        }
+
+        if (normalized.contains("authentication") ||
+                normalized.contains("wrongpass") ||
+                normalized.contains("invalid username-password")) {
+            return "Endpoint authentication failed";
+        }
+
+        if (normalized.contains("connection reset") ||
+                normalized.contains("connectionreset")) {
+            return "Endpoint connection was reset";
+        }
+
+        if (normalized.contains("health") &&
+                normalized.contains("fail")) {
+            return "Endpoint health check failed";
+        }
+
+        return "Endpoint health check failed";
+    }
 
     // ============================================================
     // APPLICATION LOOP
@@ -658,6 +738,32 @@ public class LettuceMultiDbTlsExample {
 
             Thread.sleep(1000);
         }
+    }
+
+
+    // ============================================================
+    // LOGGING
+    // ============================================================
+
+    private static void configureLogging() {
+
+        // Keep application output readable during failover.
+        // Our DatabaseSwitchEvent handler provides the user-facing
+        // failover status, so noisy Lettuce failover WARN stack traces
+        // are suppressed.
+        System.setProperty(
+                "org.slf4j.simpleLogger.defaultLogLevel",
+                "info");
+
+        System.setProperty(
+                "org.slf4j.simpleLogger.log.io.lettuce.core.failover",
+                "error");
+
+        // Suppress the Netty macOS DNS WARN as well. It is noisy but
+        // does not represent a Redis failover event.
+        System.setProperty(
+                "org.slf4j.simpleLogger.log.io.netty.resolver.dns",
+                "error");
     }
 
 
