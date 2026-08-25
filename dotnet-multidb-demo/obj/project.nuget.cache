@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dgSpecHash": "oKEj9ApNLXNpsbfPBBs+C6VGsB3VqJqOuVrOAtBtWi7OPJn8B+TLO7RcvKcSCd5qPzU7yG8M7Dl8fb5vKOFI8A==",
+  "success": true,
+  "projectFilePath": "/Users/alan/workspaces/alan-teodoro/Client-side-geographic-failover/dotnet-multidb-demo/dotnet-multidb-demo.csproj",
+  "expectedPackageFiles": [
+    "/private/tmp/codex-nuget/microsoft.extensions.dependencyinjection.abstractions/10.0.5/microsoft.extensions.dependencyinjection.abstractions.10.0.5.nupkg.sha512",
+    "/private/tmp/codex-nuget/microsoft.extensions.logging.abstractions/10.0.5/microsoft.extensions.logging.abstractions.10.0.5.nupkg.sha512",
+    "/private/tmp/codex-nuget/respite/3.1.11/respite.3.1.11.nupkg.sha512",
+    "/private/tmp/codex-nuget/stackexchange.redis/3.1.11/stackexchange.redis.3.1.11.nupkg.sha512",
+    "/private/tmp/codex-nuget/system.diagnostics.diagnosticsource/10.0.5/system.diagnostics.diagnosticsource.10.0.5.nupkg.sha512",
+    "/private/tmp/codex-nuget/system.io.hashing/10.0.5/system.io.hashing.10.0.5.nupkg.sha512",
+    "/private/tmp/codex-nuget/system.io.pipelines/10.0.5/system.io.pipelines.10.0.5.nupkg.sha512"
+  ],
+  "logs": []
+}

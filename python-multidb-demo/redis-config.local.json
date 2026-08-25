@@ -1,0 +1,23 @@
+{
+  "tls": {
+    "enabled": false
+  },
+  "databases": [
+    {
+      "name": "cluster1-us-east-1",
+      "host": "127.0.0.1",
+      "port": 12001,
+      "weight": 100.0,
+      "username": "default",
+      "password": "voJuFBE008KeN.O=Pk9WuU#Hg2xG"
+    },
+    {
+      "name": "cluster2-us-east-1",
+      "host": "127.0.0.1",
+      "port": 12002,
+      "weight": 90.0,
+      "username": "default",
+      "password": "voJuFBE008KeN.O=Pk9WuU#Hg2xG"
+    }
+  ]
+}

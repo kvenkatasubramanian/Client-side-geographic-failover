@@ -1,0 +1,37 @@
+{
+  "tls": {
+    "enabled": true,
+    "rootCa": "./certs/rootca.crt",
+    "clientCrt": "./certs/client.crt",
+    "clientKey": "./certs/client.key"
+  },
+
+  "databases": [
+    {
+      "name": "primary",
+      "host": "primary.redis-enterprise.example.com",
+      "port": 443,
+      "username": "default",
+      "password": "change-me",
+      "weight": 100.0
+    },
+
+    {
+      "name": "secondary-west",
+      "host": "secondary-west.redis-enterprise.example.com",
+      "port": 443,
+      "username": "default",
+      "password": "change-me",
+      "weight": 50.0
+    },
+
+    {
+      "name": "secondary-east",
+      "host": "secondary-east.redis-enterprise.example.com",
+      "port": 443,
+      "username": "default",
+      "password": "change-me",
+      "weight": 40.0
+    }
+  ]
+}
