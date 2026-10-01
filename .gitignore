@@ -1,10 +1,44 @@
 # Gradle 
+**/target/
 .gradle/ 
 build/
 *.class
+*.jar
+*.war
+*.ear
+dependency-reduced-pom.xml
+.mvn/timing.properties
+
+# .NET / StackExchange.Redis
+**/bin/
+**/obj/
+**/TestResults/
+*.user
+*.suo
+*.userprefs
+*.csproj.user
+packages/
 
 # VS Code 
 .vscode/
+
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+build/
+dist/
+*.egg-info/
 
 # mascOS
 .DS_Store
@@ -12,10 +46,21 @@ build/
 
 # Logs
 *.log
+*.tmp
+*.swp
+*~
 
 # Certificates certs/ 
+certs/
 *.crt 
 *.key 
 *.pem 
 *.p12 
 *.pfx
+*.jks
+*.keystore
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
