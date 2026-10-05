@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small web server for the Redis mTLS connection guide.
+"""Small web server for the Redis Connection Guide.
 
 Serves index.html and runs the Jedis, Lettuce, StackExchange.Redis or Python
 example against the Redis database the user describes in the browser.

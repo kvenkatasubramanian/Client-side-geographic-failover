@@ -1,0 +1,85 @@
+# Deploys the Redis connection guide / test runner on OpenShift.
+#
+# 1. Build and push the image (see README.md), then replace the image below.
+# 2. oc apply -f openshift/redis-connection-guide.yaml
+# 3. oc get route redis-connection-guide
+#
+# The container listens on 8080 and runs as the random non-root user OpenShift assigns.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-connection-guide
+  labels:
+    app: redis-connection-guide
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-connection-guide
+  template:
+    metadata:
+      labels:
+        app: redis-connection-guide
+    spec:
+      containers:
+        - name: guide
+          image: image-registry.openshift-image-registry.svc:5000/<project>/redis-connection-guide:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: TEST_TIMEOUT_SECONDS
+              value: "60"
+            - name: MAX_CONCURRENT_TESTS
+              value: "4"
+            # Optional: limit which Redis hosts people can test (comma separated, "*." wildcard allowed).
+            # - name: ALLOWED_HOSTS
+            #   value: "db.example.com,*.corp.example.com"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-connection-guide
+  labels:
+    app: redis-connection-guide
+spec:
+  selector:
+    app: redis-connection-guide
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: redis-connection-guide
+  labels:
+    app: redis-connection-guide
+spec:
+  to:
+    kind: Service
+    name: redis-connection-guide
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

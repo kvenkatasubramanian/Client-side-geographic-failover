@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Redis mTLS connection guide + test runner (Jedis, Lettuce, StackExchange.Redis, redis-py).
+# Redis Connection Guide + test runner (Jedis, Lettuce, StackExchange.Redis, redis-py).
 #
 # Versions:
 #   Java 17            -> maven.compiler.release in Jedis/pom.xml and Lettuce/pom.xml

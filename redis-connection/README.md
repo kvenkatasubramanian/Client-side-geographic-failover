@@ -1,4 +1,4 @@
-# Redis mTLS Connection Guide and Tester
+# Redis Connection Guide and Tester
 
 A web page, packaged as a container, that helps you connect to a TLS-protected Redis database that requires client certificates (mTLS). Choose a client library, enter your connection details, and press **Test Connection** to see whether it works. The page also shows the complete setup instructions, expected output, full source code and troubleshooting help for each library.
 
