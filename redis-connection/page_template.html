@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redis mTLS Connection Guide</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --text: #1d2433; --muted: #5d6679; --line: #e1e5ec;
+    --accent: #d82c20; --code-bg: #0f1623; --code-text: #e6edf7; --ok: #1a7f4b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { background: var(--accent); color: #fff; padding: 28px 20px; }
+  header h1 { margin: 0 0 4px; font-size: 1.6rem; }
+  header p { margin: 0; color: rgba(255,255,255,.92); }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 20px 64px; }
+  .picker { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .picker label { font-weight: 600; }
+  select { font: inherit; padding: 9px 12px; border: 1px solid #b9c1d1; border-radius: 8px; background: #fff; min-width: 280px; }
+  select:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #3b82f6; outline-offset: 2px; }
+  .bp-link { font-weight: 600; color: var(--accent); text-decoration: none; border: 1px solid var(--accent); border-radius: 8px; padding: 8px 14px; }
+  .bp-link:hover { background: var(--accent); color: #fff; }
+  details { border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; padding: 0 12px; }
+  details[open] { padding-bottom: 6px; }
+  summary { cursor: pointer; font-weight: 600; padding: 9px 0; }
+  ol.check { padding-left: 22px; }
+  td.sym { min-width: 220px; }
+  #summary { margin: 0; color: var(--muted); flex-basis: 100%; }
+  section.step { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin-top: 16px; }
+  section.step h2 { margin: 0 0 10px; font-size: 1.15rem; display: flex; align-items: center; gap: 10px; }
+  .num { background: var(--accent); color: #fff; width: 26px; height: 26px; border-radius: 50%; display: inline-grid; place-items: center; font-size: .85rem; flex: none; }
+  .empty { text-align: center; color: var(--muted); padding: 48px 0; }
+  ul { padding-left: 20px; margin: 6px 0; }
+  li { margin: 4px 0; }
+  code { background: #eef1f6; padding: 1px 6px; border-radius: 4px; font-size: .9em; }
+  pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+  .codewrap { position: relative; margin: 8px 0 12px; }
+  .codewrap .bar { display: flex; justify-content: space-between; align-items: center; background: #1b2438; color: #aeb8cc; font-size: .8rem; padding: 6px 10px; border-radius: 8px 8px 0 0; }
+  pre { margin: 0; background: var(--code-bg); color: var(--code-text); padding: 14px 16px; overflow: auto; border-radius: 0 0 8px 8px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; max-height: 560px; tab-size: 4; }
+  pre.nobar { border-radius: 8px; }
+  .copy { background: #2b3750; color: #fff; border: 0; border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
+  .copy:hover { background: #3a4a6b; }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  th, td { text-align: left; border-bottom: 1px solid var(--line); padding: 8px 10px; vertical-align: top; }
+  th { background: #f0f2f7; }
+  .tablewrap { overflow-x: auto; }
+  .tablewrap table { min-width: 680px; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+  .tab { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  .tab[aria-selected="true"] { background: var(--code-bg); color: #fff; border-color: var(--code-bg); }
+  .hint { color: var(--muted); font-size: .92rem; margin: 6px 0; }
+  .note { background: #fff8e6; border: 1px solid #f1d98b; border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: .93rem; }
+  .ok { color: var(--ok); font-weight: 600; }
+  h3 { margin: 14px 0 4px; font-size: 1rem; }
+  .form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 16px; margin: 12px 0; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field.wide { grid-column: 1 / -1; }
+  .field label { font-weight: 600; font-size: .92rem; }
+  .field label code { font-weight: 400; }
+  .field input[type=text], .field input[type=number], .field input[type=password], .field textarea { font: inherit; padding: 8px 10px; border: 1px solid #b9c1d1; border-radius: 8px; width: 100%; background: #fff; color: var(--text); }
+  .field textarea { font: 12.5px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; min-height: 84px; }
+  .field input:focus-visible, .field textarea:focus-visible { outline: 3px solid #3b82f6; outline-offset: 1px; }
+  .field .help { color: var(--muted); font-size: .85rem; }
+  .field .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .btn { font: inherit; font-weight: 600; border-radius: 8px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--accent); background: #fff; color: var(--accent); }
+  .btn.small { padding: 4px 10px; font-weight: 500; font-size: .85rem; }
+  .btn.primary { background: var(--accent); color: #fff; padding: 10px 22px; font-size: 1rem; }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+  .actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+  .badge { font-weight: 600; padding: 3px 10px; border-radius: 999px; font-size: .9rem; }
+  .badge.pass { background: #e3f6ec; color: var(--ok); }
+  .badge.fail { background: #fde8e6; color: #b3261e; }
+  .badge.wait { background: #eef1f6; color: var(--muted); }
+  pre.out { border-radius: 8px; max-height: 320px; min-height: 90px; white-space: pre-wrap; word-break: break-word; margin-top: 10px; }
+  .showpw { font-size: .85rem; font-weight: 400; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Redis mTLS Connection Guide</h1>
+  <p>Pick a client library to see the complete setup, inputs, run steps, expected output and full source code.</p>
+</header>
+<main>
+  <div class="picker">
+    <label for="fw">Choose a framework</label>
+    <select id="fw">
+      <option value="">-- Select a framework --</option>
+    </select>
+    <a class="bp-link" href="https://redis.io/docs/latest/develop/clients/" target="_blank" rel="noopener noreferrer">Best Practices &#8599;</a>
+    <p id="summary"></p>
+  </div>
+  <div id="content"><p class="empty">Select a framework from the dropdown above to get started.</p></div>
+</main>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function codeBlock(text, label) {
+  const w = document.createElement("div");
+  w.className = "codewrap";
+  w.innerHTML = `<div class="bar"><span>${esc(label || "")}</span><button type="button" class="copy">Copy</button></div><pre><code></code></pre>`;
+  w._text = text;
+  w.setText = v => { w._text = v; $("code", w).textContent = v; };
+  $("code", w).textContent = text;
+  $(".copy", w).addEventListener("click", async e => {
+    try { await navigator.clipboard.writeText(w._text); e.target.textContent = "Copied!"; }
+    catch { const r = document.createRange(); r.selectNodeContents($("code", w)); getSelection().removeAllRanges(); getSelection().addRange(r); e.target.textContent = "Selected - press Ctrl/Cmd+C"; }
+    setTimeout(() => e.target.textContent = "Copy", 1800);
+  });
+  return w;
+}
+
+function step(n, title, ...nodes) {
+  const s = document.createElement("section");
+  s.className = "step";
+  s.innerHTML = `<h2><span class="num">${n}</span>${title}</h2>`;
+  nodes.forEach(x => s.append(typeof x === "string" ? Object.assign(document.createElement("div"), { innerHTML: x }) : x));
+  return s;
+}
+
+// Run commands that follow the host / port / username typed in the connection form.
+const DEFAULT_HOST = "demo-db.redis-enterprise.example.com";
+const liveBlocks = [];
+const shq = v => v.replace(/[\\"$`]/g, "\\$&");
+function connLines() {
+  const host = form.host.trim() || DEFAULT_HOST, port = String(form.port).trim() || "443", user = form.username.trim();
+  return `REDIS_HOST="${shq(host)}" \\\n` + `REDIS_PORT="${shq(port)}" \\\n` + (user ? `REDIS_USERNAME="${shq(user)}" \\\n` : "");
+}
+function liveBlock(template, label) {
+  const b = codeBlock("", label);
+  const update = () => b.setText(template.replace("@@CONN@@", connLines()));
+  liveBlocks.push(update); update();
+  return b;
+}
+const refreshCommands = () => liveBlocks.forEach(u => u());
+
+const form = { host: "", port: "443", username: "default", password: "", ca_cert: "", client_cert: "", client_key: "" };
+const server = { ok: false, timeout: 60 };
+
+function applyServerState() {
+  document.querySelectorAll(".test-btn").forEach(b => b.disabled = !server.ok);
+  document.querySelectorAll(".server-note").forEach(n => { n.hidden = server.ok; });
+}
+
+function testPanel(key, f) {
+  const nw = f.null_word;
+  const root = document.createElement("div");
+  const text = (id, env, label, type, ph, help) => `<div class="field"><label for="in-${id}">${label} <code>${env}</code></label><input id="in-${id}" type="${type}" placeholder="${esc(ph)}" autocomplete="${type === "password" ? "new-password" : "off"}" spellcheck="false"><span class="help">${help}</span></div>`;
+  const pem = (id, env, label, file) => `<div class="field wide"><label for="in-${id}">${label} <code>${env}</code></label><textarea id="in-${id}" rows="4" spellcheck="false" placeholder="-----BEGIN ...-----&#10;Paste the contents of ${file}, or choose the file"></textarea><span class="row"><button type="button" class="btn small" data-file="${id}">Choose ${file}&hellip;</button><input type="file" hidden data-input="${id}" accept=".crt,.pem,.cer,.key,.txt"><span class="help">Optional. PEM text, used only for this test.</span></span></div>`;
+  root.innerHTML = `
+    <p>Fill in the values below and press <strong>Test Connection</strong>. Only the host is required: leave all three certificate boxes empty to connect without TLS, or fill them in for mutual TLS (the client certificate and key go together). The ${esc(f.label)} example runs on the server with these settings and its output appears underneath.</p>
+    <div class="form">
+      ${text("host", "REDIS_HOST", "Redis host", "text", "your-db.example.com", "Required.")}
+      ${text("port", "REDIS_PORT", "Port", "number", "443", "Default is 443.")}
+      ${text("username", "REDIS_USERNAME", "Username", "text", nw, `Default is <code>default</code>. Clear it to use no username (${nw}).`)}
+      <div class="field"><label for="in-password">Password <code>REDIS_PASSWORD</code></label><input id="in-password" type="password" placeholder="${nw}" autocomplete="new-password" spellcheck="false"><span class="help">Leave empty if the database has no password (<code>${nw}</code> in ${esc(f.label.replace(/ \(.*/, ""))}). <label class="showpw"><input type="checkbox" id="showpw"> Show</label></span></div>
+      ${pem("ca_cert", "REDIS_CA_CERT", "CA certificate", "ca.crt")}
+      ${pem("client_cert", "REDIS_CLIENT_CERT", "Client certificate", "client.crt")}
+      ${pem("client_key", "REDIS_CLIENT_KEY", "Client private key", "client.key")}
+    </div>
+    <div class="note server-note" hidden>Test Connection only works when this page is served by the container (for example <code>http://localhost:8080</code>). You opened it as a plain file, so the button is disabled.</div>
+    <div class="actions"><button type="button" class="btn primary test-btn" disabled>Test Connection</button><button type="button" class="btn clear-btn" title="Empty every field and the output">Clear</button><span class="badge wait" id="badge" role="status" aria-live="polite" hidden></span></div>
+    <pre class="out nobar" id="out" tabindex="0" aria-label="Test output" hidden></pre>
+    <p class="hint">Your password and certificates are sent only to this server, written to a temporary folder for the single test, and deleted straight afterwards. They are never stored.${location.protocol === "http:" && !["localhost", "127.0.0.1"].includes(location.hostname) ? " <strong>This page is not using HTTPS - do not enter real credentials.</strong>" : ""}</p>`;
+
+  // restore values kept from a previous framework choice
+  Object.keys(form).forEach(id => { $("#in-" + id, root).value = form[id]; });
+  root.querySelectorAll("input[id^=in-], textarea").forEach(el => el.addEventListener("input", () => { form[el.id.slice(3)] = el.value; refreshCommands(); }));
+  $("#showpw", root).addEventListener("change", e => { $("#in-password", root).type = e.target.checked ? "text" : "password"; });
+  root.querySelectorAll("[data-file]").forEach(btn => {
+    const id = btn.dataset.file, input = $(`[data-input=${id}]`, root);
+    btn.addEventListener("click", () => input.click());
+    input.addEventListener("change", () => {
+      const file = input.files[0]; if (!file) return;
+      const r = new FileReader();
+      r.onload = () => { $("#in-" + id, root).value = form[id] = String(r.result); };
+      r.readAsText(file);
+    });
+  });
+
+  const badge = $("#badge", root), out = $("#out", root), btn = $(".test-btn", root);
+  const show = (cls, label, body) => {
+    badge.hidden = false; badge.className = "badge " + cls; badge.textContent = label;
+    out.hidden = false; out.textContent = body; out.scrollTop = 0;
+  };
+  btn.addEventListener("click", async () => {
+    const missing = [];
+    if (!form.host.trim()) missing.push("REDIS_HOST");
+    if (missing.length) { show("fail", "Missing input", "Please provide: " + missing.join(", ")); return; }
+    if (!form.client_cert.trim() !== !form.client_key.trim()) { show("fail", "Missing input", "REDIS_CLIENT_CERT and REDIS_CLIENT_KEY must be provided together."); return; }
+    btn.disabled = true;
+    show("wait", "Testing\u2026", `Running the ${f.label} example against ${form.host.trim()}:${form.port || 443} (up to ${server.timeout} s)...`);
+    try {
+      const res = await fetch("api/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ framework: key, ...form }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) show("fail", "Request rejected", data.error || `The server answered HTTP ${res.status}.`);
+      else show(data.ok ? "pass" : "fail", data.ok ? "Connection successful" : (data.timed_out ? "Timed out" : "Connection failed"),
+        `$ ${data.command}\n\n${data.output.trim() || "(no output)"}\n\n[exit code ${data.exit_code} - ${data.duration_s} s]`);
+    } catch (err) {
+      show("fail", "Server unreachable", "Could not reach the test server: " + err.message);
+    } finally { btn.disabled = !server.ok; }
+  });
+  $(".clear-btn", root).addEventListener("click", () => {
+    Object.keys(form).forEach(id => { form[id] = ""; $("#in-" + id, root).value = ""; });
+    root.querySelectorAll("input[type=file]").forEach(i => { i.value = ""; });
+    badge.hidden = true; badge.textContent = ""; out.hidden = true; out.textContent = "";
+    refreshCommands();
+    $("#in-host", root).focus();
+  });
+  return root;
+}
+
+function render(key) {
+  const c = $("#content");
+  c.innerHTML = "";
+  $("#summary").textContent = "";
+  if (!key) { c.innerHTML = '<p class="empty">Select a framework from the dropdown above to get started.</p>'; return; }
+  const f = DATA.frameworks[key];
+  $("#summary").textContent = f.summary;
+
+  liveBlocks.length = 0;
+  let n = 0;
+
+  // 1. Inputs + Test Connection
+  const rows = DATA.inputs.map(r => `<tr><td><code>${r[0]}</code></td><td>${r[1]}</td><td>${r[2] === "(none)" ? "&mdash;" : "<code>" + esc(r[2]) + "</code>"}</td><td>${r[3]}</td></tr>`).join("");
+  c.append(step(++n, "Enter your connection details and test", testPanel(key, f),
+    `<details><summary>Command-line reference: the same settings as environment variables</summary><p>When you run the code yourself (the Build and Run steps below) the program reads these environment variables - nothing is typed in interactively.</p><div class="tablewrap"><table><thead><tr><th>Variable</th><th>Required</th><th>Default</th><th>Meaning</th></tr></thead><tbody>${rows}</tbody></table></div><p class="hint">* The built-in default host is a placeholder - set <code>REDIS_HOST</code> to your own database host.</p></details>`));
+
+  // 2. Prerequisites
+  c.append(step(++n, "Install the prerequisites",
+    "<ul>" + f.prereqs.map(([t, cmd]) => `<li>${esc(t)}${cmd ? ` &mdash; check with <code>${esc(cmd)}</code>` : ""}</li>`).join("") + "</ul>"));
+
+  // 3. Directory
+  c.append(step(++n, "Set up the directory",
+    `<p>Use the <code>${esc(f.folder)}</code> folder from this project. Its layout must look like this:</p>`,
+    codeBlock(f.layout, "Directory layout"),
+    `<p>${DATA.certs_note}</p>`,
+    `<p>Then go to the project and prepare it:</p>`,
+    codeBlock(f.setup_cmd, "bash"),
+    ...f.notes.map(n => `<div class="note">${n}</div>`)));
+
+  // 4. Build
+  const build = [`<p>Run this inside the project folder:</p>`, codeBlock(f.build_cmd, "bash")];
+  if (f.build_ok) build.push(`<p>A successful build ends with <span class="ok">${esc(f.build_ok)}</span></p>`);
+  c.append(step(++n, esc(f.build_title), ...build));
+
+  // 5. Run
+  c.append(step(++n, "Run it",
+    "<h3>Option A &mdash; read the password from the OpenShift secret</h3>",
+    liveBlock(f.run_secret, "bash"),
+    "<h3>Option B &mdash; type the password directly</h3>",
+    liveBlock(f.run_direct, "bash"),
+    "<h3>Option C &mdash; certificates stored somewhere else</h3>",
+    liveBlock(f.run_override, "bash"),
+    `<p class="hint">The host, port and username in these commands follow what you entered in step 1 (an empty username is left out). Replace the password and certificate paths with your own.</p>`));
+
+  // 6. Output
+  c.append(step(++n, "Expected output",
+    "<p>If the connection works you will see something like:</p>",
+    codeBlock(f.output, "output"),
+    `<p class="hint">If you see a TLS or authentication error instead, check the host, port, password and the three files in <code>certs/</code>.</p>`));
+
+  // 7. Source
+  const src = document.createElement("section");
+  src.className = "step";
+  src.innerHTML = `<h2><span class="num">${++n}</span>Complete source code</h2>`;
+  const tabs = document.createElement("div"); tabs.className = "tabs"; tabs.setAttribute("role", "tablist");
+  const holder = document.createElement("div");
+  f.files.forEach((file, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "tab"; b.textContent = file.name; b.setAttribute("role", "tab");
+    b.addEventListener("click", () => show(i));
+    tabs.append(b);
+  });
+  function show(i) {
+    [...tabs.children].forEach((b, j) => b.setAttribute("aria-selected", j === i));
+    holder.innerHTML = "";
+    holder.append(codeBlock(f.files[i].code, f.files[i].path));
+  }
+  src.append(tabs, holder);
+  c.append(src);
+  show(f.files.length - 1);
+
+  // 8. Troubleshooting
+  const T = DATA.troubleshooting;
+  const errTable = rows => `<div class="tablewrap"><table><thead><tr><th>What you see</th><th>Likely cause</th><th>What to do</th></tr></thead><tbody>${rows.map(r => `<tr><td class="sym">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}</tbody></table></div>`;
+  const diag = document.createElement("div");
+  T.diagnostics.forEach(([title, why, cmd, look]) => {
+    const d = document.createElement("details");
+    d.innerHTML = `<summary>${title}</summary><p>${why}</p>`;
+    d.append(codeBlock(cmd, "bash"));
+    d.insertAdjacentHTML("beforeend", `<p class="hint"><strong>What to look for:</strong> ${look}</p>`);
+    diag.append(d);
+  });
+  c.append(step(++n, "Troubleshooting",
+    "<p>If the example does not print the expected output, work through these in order.</p>",
+    `<h3>Step-by-step approach</h3><ol class="check">${T.checklist.map(x => `<li>${x}</li>`).join("")}</ol>`,
+    `<h3>Common errors with ${esc(f.label)}</h3>`, errTable(T.framework_errors[key]),
+    "<h3>Certificate, TLS and connection errors (all frameworks)</h3>", errTable(T.general_errors),
+    "<h3>Diagnostic commands</h3><p class=\"hint\">Run these from the example folder. They test the certificates and connection without any Redis client code. Click a title to expand it.</p>", diag));
+  applyServerState();
+}
+
+fetch("api/health").then(r => r.ok ? r.json() : Promise.reject()).then(j => { server.ok = true; server.timeout = j.timeout_s || 60; }).catch(() => { server.ok = false; }).finally(applyServerState);
+
+const sel = $("#fw");
+Object.entries(DATA.frameworks).forEach(([k, f]) => sel.add(new Option(f.label, k)));
+sel.addEventListener("change", () => { history.replaceState(null, "", sel.value ? "#" + sel.value : location.pathname); render(sel.value); });
+const initial = location.hash.slice(1);
+if (DATA.frameworks[initial]) { sel.value = initial; render(initial); }
+</script>
+</body>
+</html>
